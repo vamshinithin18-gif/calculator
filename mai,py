@@ -1,0 +1,193 @@
+# ============================================
+#   Simple Interactive Calculator (Beginner)
+#   Uses tkinter, which comes with Python.
+#   Run it with:  python calculator.py
+# ============================================
+
+import tkinter as tk
+
+# ---------- COLORS (change these to restyle the app!) ----------
+BG_COLOR = "#1e1e2e"          # window background
+DISPLAY_BG = "#11111b"        # display area
+NUMBER_COLOR = "#313244"      # number buttons
+NUMBER_HOVER = "#45475a"      # number buttons when mouse is over them
+OPERATOR_COLOR = "#fab387"    # + - * / buttons
+OPERATOR_HOVER = "#f9c9a8"
+CLEAR_COLOR = "#f38ba8"       # C button
+CLEAR_HOVER = "#f5a3b9"
+EQUALS_COLOR = "#a6e3a1"      # = button
+EQUALS_HOVER = "#bdeeb9"
+TEXT_COLOR = "#cdd6f4"
+DARK_TEXT = "#1e1e2e"
+
+# ---------- CREATE THE WINDOW ----------
+window = tk.Tk()
+window.title("My Calculator")
+window.geometry("340x520")
+window.configure(bg=BG_COLOR)
+window.resizable(False, False)
+
+# This variable stores what the user has typed so far
+expression = ""
+
+
+# ---------- FUNCTIONS ----------
+def update_display():
+    """Show the current expression on the screen."""
+    if expression == "":
+        display_label.config(text="0")
+    else:
+        display_label.config(text=expression)
+
+
+def press(value):
+    """Called when a number or operator button is pressed."""
+    global expression
+    expression = expression + str(value)
+    update_display()
+
+
+def clear():
+    """Clear everything."""
+    global expression
+    expression = ""
+    history_label.config(text="")
+    update_display()
+
+
+def backspace():
+    """Delete the last character."""
+    global expression
+    expression = expression[:-1]
+    update_display()
+
+
+def calculate():
+    """Work out the answer."""
+    global expression
+    if expression == "":
+        return
+
+    try:
+        # Only allow safe characters so nothing weird gets evaluated
+        allowed = "0123456789+-*/.()% "
+        for character in expression:
+            if character not in allowed:
+                raise ValueError("Bad character")
+
+        result = eval(expression)
+
+        # Show a whole number without ".0" (5.0 becomes 5)
+        if isinstance(result, float) and result.is_integer():
+            result = int(result)
+
+        history_label.config(text=expression + " =")
+        expression = str(result)
+        update_display()
+
+    except ZeroDivisionError:
+        history_label.config(text=expression + " =")
+        expression = ""
+        display_label.config(text="Can't divide by 0")
+
+    except Exception:
+        expression = ""
+        display_label.config(text="Error")
+
+
+def on_key(event):
+    """Lets you use your keyboard too!"""
+    key = event.char
+
+    if key in "0123456789+-*/.()%":
+        press(key)
+    elif event.keysym == "Return" or key == "=":
+        calculate()
+    elif event.keysym == "BackSpace":
+        backspace()
+    elif event.keysym == "Escape" or key.lower() == "c":
+        clear()
+
+
+# ---------- DISPLAY AREA ----------
+display_frame = tk.Frame(window, bg=DISPLAY_BG)
+display_frame.pack(fill="x", padx=15, pady=(20, 10))
+
+history_label = tk.Label(
+    display_frame, text="", font=("Segoe UI", 12),
+    bg=DISPLAY_BG, fg="#7f849c", anchor="e",
+)
+history_label.pack(fill="x", padx=12, pady=(10, 0))
+
+display_label = tk.Label(
+    display_frame, text="0", font=("Segoe UI", 32, "bold"),
+    bg=DISPLAY_BG, fg=TEXT_COLOR, anchor="e",
+)
+display_label.pack(fill="x", padx=12, pady=(0, 10))
+
+
+# ---------- BUTTON MAKER ----------
+def make_button(parent, text, command, color, hover_color, text_color=TEXT_COLOR):
+    """Creates one nice-looking button with a hover effect."""
+    button = tk.Button(
+        parent, text=text, command=command,
+        font=("Segoe UI", 16, "bold"),
+        bg=color, fg=text_color,
+        activebackground=hover_color, activeforeground=text_color,
+        relief="flat", bd=0, cursor="hand2",
+    )
+
+    # When the mouse enters the button, change its color
+    def mouse_enter(event):
+        button.config(bg=hover_color)
+
+    # When the mouse leaves, change it back
+    def mouse_leave(event):
+        button.config(bg=color)
+
+    button.bind("<Enter>", mouse_enter)
+    button.bind("<Leave>", mouse_leave)
+    return button
+
+
+# ---------- BUTTONS ----------
+buttons_frame = tk.Frame(window, bg=BG_COLOR)
+buttons_frame.pack(expand=True, fill="both", padx=10, pady=10)
+
+# Each row is a list of (text, what-to-do, type)
+rows = [
+    [("C", clear, "clear"), ("⌫", backspace, "operator"), ("%", lambda: press("%"), "operator"), ("÷", lambda: press("/"), "operator")],
+    [("7", lambda: press(7), "number"), ("8", lambda: press(8), "number"), ("9", lambda: press(9), "number"), ("×", lambda: press("*"), "operator")],
+    [("4", lambda: press(4), "number"), ("5", lambda: press(5), "number"), ("6", lambda: press(6), "number"), ("−", lambda: press("-"), "operator")],
+    [("1", lambda: press(1), "number"), ("2", lambda: press(2), "number"), ("3", lambda: press(3), "number"), ("+", lambda: press("+"), "operator")],
+    [("0", lambda: press(0), "number"), (".", lambda: press("."), "number"), ("(", lambda: press("("), "number"), (")", lambda: press(")"), "number")],
+]
+
+# Build all the rows of buttons
+for row_number in range(len(rows)):
+    buttons_frame.rowconfigure(row_number, weight=1)
+    for col_number in range(4):
+        buttons_frame.columnconfigure(col_number, weight=1)
+
+        text, command, kind = rows[row_number][col_number]
+
+        if kind == "number":
+            button = make_button(buttons_frame, text, command, NUMBER_COLOR, NUMBER_HOVER)
+        elif kind == "operator":
+            button = make_button(buttons_frame, text, command, OPERATOR_COLOR, OPERATOR_HOVER, DARK_TEXT)
+        else:  # clear
+            button = make_button(buttons_frame, text, command, CLEAR_COLOR, CLEAR_HOVER, DARK_TEXT)
+
+        button.grid(row=row_number, column=col_number, sticky="nsew", padx=4, pady=4)
+
+# The big equals button goes on the last row, across all 4 columns
+buttons_frame.rowconfigure(len(rows), weight=1)
+equals_button = make_button(buttons_frame, "=", calculate, EQUALS_COLOR, EQUALS_HOVER, DARK_TEXT)
+equals_button.grid(row=len(rows), column=0, columnspan=4, sticky="nsew", padx=4, pady=4)
+
+
+# ---------- KEYBOARD SUPPORT ----------
+window.bind("<Key>", on_key)
+
+# ---------- START THE APP ----------
+window.mainloop()
